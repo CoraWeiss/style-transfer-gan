@@ -1,13 +1,13 @@
-# style-transfer-gan
 # Style Transfer GAN
 
-A PyTorch implementation of a Generative Adversarial Network (GAN) for artistic style transfer.
+PyTorch GAN implementation for artistic style transfer.
 
 ## Features
-- Custom GAN architecture optimized for style transfer
+- Custom GAN architecture
 - Real-time training visualization
-- Progressive image generation across epochs
-- Dataset loader for custom style images
+- Progressive image generation
+- Configurable training parameters
+- Modular training code structure
 
 ## Installation
 ```bash
@@ -16,27 +16,46 @@ cd style-transfer-gan
 pip install -r requirements.txt
 ```
 
+## Project Structure
+```
+style-transfer-gan/
+├── training_code/
+│   ├── gan_training.py    # Core training loop
+│   ├── trainer_config.py  # Training parameters
+│   └── train_utils.py     # Training utilities
+├── models/
+│   ├── generator.py       # Generator architecture
+│   └── discriminator.py   # Discriminator architecture
+└── data/
+    └── data_loader.py     # Dataset handling
+```
+
 ## Usage
 1. Add style images to `data/style_images/`
-2. Start training:
+2. Configure parameters in `training_code/trainer_config.py`
+3. Start training:
 ```bash
-cd style_transfer_gan
 python train.py
 ```
 
-Generated images appear in `outputs/` every 5 epochs.
+## Training Parameters
+```python
+training_config = {
+    'num_epochs': 100,
+    'batch_size': 32,
+    'learning_rate': 0.0001,
+    'latent_dim': 100,
+    'image_size': 64,
+    'channels': 3,
+    'save_frequency': 5
+}
+```
 
 ## Model Architecture
-- Generator: Transposed convolutional layers with batch normalization
-- Discriminator: Convolutional layers with LeakyReLU activation
+- Generator: Transposed CNN with batch normalization
+- Discriminator: CNN with LeakyReLU
 - Input: 64x64 RGB images
-- Latent space: 100-dimensional noise vector
-
-## Training Parameters
-- Learning rate: 0.0001
-- Batch size: 32
-- Epochs: 100
-- Optimizer: Adam (β1=0.5, β2=0.999)
+- Latent space: 100-dimensional
 
 ## Requirements
 - Python 3.7+
@@ -45,8 +64,10 @@ Generated images appear in `outputs/` every 5 epochs.
 - numpy
 - Pillow
 
-## Generated Examples
-Generated images show progression from noise to learned style across training epochs. See `outputs/` for full results.
+## Training Progress
+- Generated images saved every 5 epochs in `outputs/`
+- Training metrics logged during execution
+- Checkpoint saving functionality included
 
 ## Acknowledgments
 Architecture inspired by DCGAN paper (Radford et al.).
