@@ -1,0 +1,50 @@
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+
+const GanViewer = () => {
+  const [selectedEpoch, setSelectedEpoch] = useState(5);
+  const epochs = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+  return (
+    <div className="w-full max-w-4xl mx-auto p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>GAN Generated Images</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-2 flex-wrap">
+              {epochs.map(epoch => (
+                <button
+                  key={epoch}
+                  onClick={() => setSelectedEpoch(epoch)}
+                  className={`px-3 py-1 rounded ${
+                    selectedEpoch === epoch 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300'
+                  }`}
+                >
+                  {epoch}
+                </button>
+              ))}
+            </div>
+            
+            <div className="border rounded-lg overflow-hidden">
+              <img 
+                src={`outputs/fake_images_epoch_${selectedEpoch}.png`}
+                alt={`Generated images at epoch ${selectedEpoch}`}
+                className="w-full h-auto"
+              />
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              Epoch {selectedEpoch}/100
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default GanViewer;
