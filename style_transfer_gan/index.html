@@ -1,50 +1,194 @@
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Style Transfer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root">
+        <div class="w-full max-w-4xl mx-auto p-4">
+            <div class="bg-white rounded-lg shadow-lg">
+                <div class="p-6">
+                    <h2 class="text-2xl font-bold mb-4">Neural Style Transfer</h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg mb-2">Content Image</h3>
+                        <img id="contentImage" src="content.jpg" class="w-64 h-64 object-cover border rounded"/>
+                    </div>
 
-const GanViewer = () => {
-  const [selectedEpoch, setSelectedEpoch] = useState(5);
-  const epochs = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+                    <div class="mb-6">
+                        <h3 class="text-lg mb-2">Style Image</h3>
+                        <div id="styleImages" class="grid grid-cols-3 gap-4"></div>
+                    </div>
 
-  return (
-    <div className="w-full max-w-4xl mx-auto p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>GAN Generated Images</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-2 flex-wrap">
-              {epochs.map(epoch => (
-                <button
-                  key={epoch}
-                  onClick={() => setSelectedEpoch(epoch)}
-                  className={`px-3 py-1 rounded ${
-                    selectedEpoch === epoch 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                >
-                  {epoch}
-                </button>
-              ))}
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium mb-2">
+                            Iterations: <span id="iterationValue">100</span>
+                        </label>
+                        <input type="range" id="iterations" min="10" max="1000" value="100" step="10"
+                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"/>
+                    </div>
+
+                    <button id="transferButton" 
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400">
+                        Start Transfer
+                    </button>
+
+                    <div class="mt-6">
+                        <h3 class="text-lg mb-2">Result</h3>
+                        <canvas id="outputCanvas" class="border rounded"></canvas>
+                    </div>
+                </div>
             </div>
-            
-            <div className="border rounded-lg overflow-hidden">
-              <img 
-                src={`outputs/fake_images_epoch_${selectedEpoch}.png`}
-                alt={`Generated images at epoch ${selectedEpoch}`}
-                className="w-full h-auto"
-              />
-            </div>
-            
-            <div className="text-sm text-gray-600">
-              Epoch {selectedEpoch}/100
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
     </div>
-  );
-};
 
-export default GanViewer;
+    <script>
+        async function loadStyleImages() {
+            const styleDir = 'style_transfer_gan/data/style_images/';
+            const container = document.getElementById('styleImages');
+            
+            try {
+                const images = await window.fs.readdir(styleDir);
+                images.filter(file => file.match(/\.(jpg|jpeg|png)$/i))
+                    .forEach(image => {
+                        const div = document.createElement('div');
+                        div.className = 'cursor-pointer border-2 border-gray-200 rounded-lg overflow-hidden hover:border-blue-500';
+                        
+                        const img = document.createElement('img');
+                        img.src = styleDir + image;
+                        img.className = 'w-full h-32 object-cover';
+                        img.onclick = () => selectStyle(img);
+                        
+                        div.appendChild(img);
+                        container.appendChild(div);
+                    });
+            } catch (error) {
+                console.error('Error loading style images:', error);
+            }
+        }
+
+        let selectedStyleImage = null;
+
+        function selectStyle(img) {
+            document.querySelectorAll('#styleImages div').forEach(div => {
+                div.classList.remove('border-blue-500');
+                div.classList.add('border-gray-200');
+            });
+            img.parentElement.classList.remove('border-gray-200');
+            img.parentElement.classList.add('border-blue-500');
+            selectedStyleImage = img;
+        }
+
+        document.getElementById('iterations').addEventListener('input', (e) => {
+            document.getElementById('iterationValue').textContent = e.target.value;
+        });
+
+        document.getElementById('transferButton').addEventListener('click', async () => {
+            if (!selectedStyleImage) {
+                alert('Please select a style image');
+                return;
+            }
+
+            const button = document.getElementById('transferButton');
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            try {
+                await runStyleTransfer(
+                    document.getElementById('contentImage'),
+                    selectedStyleImage,
+                    parseInt(document.getElementById('iterations').value)
+                );
+            } catch (error) {
+                console.error('Style transfer error:', error);
+                alert('Error during style transfer');
+            }
+
+            button.disabled = false;
+            button.textContent = 'Start Transfer';
+        });
+
+        async function runStyleTransfer(contentImage, styleImage, iterations) {
+            const model = await tf.loadLayersModel('https://tfhub.dev/google/tfjs-model/vgg19/1/default/1');
+            
+            const contentTensor = tf.browser.fromPixels(contentImage)
+                .toFloat()
+                .expandDims();
+            
+            const styleTensor = tf.browser.fromPixels(styleImage)
+                .toFloat()
+                .expandDims();
+
+            const canvas = document.getElementById('outputCanvas');
+            canvas.width = contentImage.width;
+            canvas.height = contentImage.height;
+
+            const generatedImage = tf.variable(contentTensor);
+
+            const optimizer = tf.train.adam(0.02);
+
+            for (let i = 0; i < iterations; i++) {
+                const loss = optimizer.minimize(() => {
+                    const styleLoss = calculateStyleLoss(model, generatedImage, styleTensor);
+                    const contentLoss = calculateContentLoss(model, generatedImage, contentTensor);
+                    return styleLoss.mul(1e-2).add(contentLoss.mul(1));
+                }, true);
+
+                if (i % 10 === 0) {
+                    const pixels = await tf.browser.toPixels(generatedImage.squeeze());
+                    const ctx = canvas.getContext('2d');
+                    const imageData = new ImageData(pixels, canvas.width, canvas.height);
+                    ctx.putImageData(imageData, 0, 0);
+                }
+
+                await tf.nextFrame();
+            }
+
+            tf.dispose([contentTensor, styleTensor, generatedImage]);
+        }
+
+        function calculateStyleLoss(model, generated, style) {
+            const styleLayers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1'];
+            return tf.tidy(() => {
+                const losses = styleLayers.map(layer => {
+                    const styleFeatures = model.getLayer(layer).apply(style);
+                    const generatedFeatures = model.getLayer(layer).apply(generated);
+                    
+                    const styleGram = gramMatrix(styleFeatures);
+                    const generatedGram = gramMatrix(generatedFeatures);
+                    
+                    const size = styleFeatures.shape[1] * styleFeatures.shape[2];
+                    return tf.mean(tf.square(tf.sub(styleGram, generatedGram)))
+                        .mul(1.0 / (4.0 * Math.pow(styleFeatures.shape[3], 2) * Math.pow(size, 2)));
+                });
+                
+                return tf.add(losses);
+            });
+        }
+
+        function calculateContentLoss(model, generated, content) {
+            return tf.tidy(() => {
+                const contentLayer = 'block5_conv2';
+                const contentFeatures = model.getLayer(contentLayer).apply(content);
+                const generatedFeatures = model.getLayer(contentLayer).apply(generated);
+                return tf.mean(tf.square(tf.sub(contentFeatures, generatedFeatures)));
+            });
+        }
+
+        function gramMatrix(features) {
+            return tf.tidy(() => {
+                const [batch, height, width, channels] = features.shape;
+                const flattened = tf.reshape(features, [height * width, channels]);
+                const gram = tf.matMul(flattened, flattened, true);
+                return gram.div(tf.scalar(height * width * channels));
+            });
+        }
+
+        loadStyleImages();
+    </script>
+</body>
+</html>
